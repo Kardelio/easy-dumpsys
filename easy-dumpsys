@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+activitycolor="\033[44;93m"
+fragmentcolor="\033[95m"
+objectcolor="\033[2m"
+reset="\033[0m"
+activitycount=0
+linecount=0
+withinActivityBlock=false
+timestamp=$(date +%s)
+dsFileName=".ds_temp_file_$timestamp"
+
+package=$1
+if [ $# -eq 0 ]; then
+    fzf_installed=$(which fzf)
+    if [[ -z ${fzf_installed} ]]; then
+        echo "FZF is NOT installed so you can not use the interactive package picker"
+        echo "Install FZF to enable this feature"
+        exit 1
+    else
+        packToUse=$(adb shell pm list package -3 | fzf | cut -d':' -f2)
+        echo "Using package: $packToUse"
+        package="$packToUse"
+    fi
+fi
+
+adb shell dumpsys activity "$package" > "$dsFileName"
+
+sed -i '' 's/Active Fragments://g' "$dsFileName"
+input="$dsFileName"
+
+function getChildren(){
+    local parentCols="$4"
+    local dep=$3
+    local grepBlockTopLevelCF=$(grep -B 6 "^[[:space:]]*mFragmentManager=FragmentManager.*$1{$2}" "$input")
+    if ! [[ -z "$grepBlockTopLevelCF" ]]; then
+        maxlines=$(echo "$grepBlockTopLevelCF" | wc -l)
+        numOfKids=$((maxlines / 7))
+        if [[ $numOfKids -gt 1 ]]; then
+            parentCols="$parentCols,$dep"
+        fi
+        for ((n=0;n<$numOfKids;n++))
+        do
+            i=$((n+1))
+            m7=$((8 * n))
+            lineToRead=$((m7 + 1))
+            childFragLine=$(echo "$grepBlockTopLevelCF" | sed -n "${lineToRead}p")
+            a=$(echo "$childFragLine" | tr -s ' ' | cut -d' ' -f2)
+            b=$(echo "$a" | cut -d'{' -f1)
+            c=$(echo "$a" | cut -d'{' -f2 | cut -d'}' -f1)
+
+            SAVEIFS=$IFS
+            IFS=',' read -r -a splitPars <<< "$parentCols"
+            IFS=$SAVEIFS
+
+            spacer=" "
+            for ((j=0;j<$dep;j++))
+            do
+                if [[ "${splitPars[@]}" =~ "${j}" ]]; then
+                    spacer="${spacer}│  "
+                else
+                    spacer="$spacer   "
+                fi
+            done
+            if [[ $((n+1)) == $numOfKids ]]; then
+                echo -e "${spacer}└─ ${fragmentcolor}$b${reset} - ${objectcolor}$c${reset}"
+            else
+                echo -e "${spacer}├─ ${fragmentcolor}$b${reset} - ${objectcolor}$c${reset}"
+            fi
+            ( getChildren "$b" "$c" $((dep+1)) "$parentCols" )
+        done
+    fi
+}
+
+while IFS= read -r line
+do
+    linecount=$((linecount + 1))
+    activityLine=$(echo "$line" | grep "^\ \ ACTIVITY" | sed -e 's/^[[:space:]]*//')
+    if ! [[ -z "$activityLine" ]]; then
+        withinActivityBlock=true
+        activitycount=$((activitycount+1))
+        activityDisplayLine=$(echo "$activityLine" | cut -d' ' -f2 | cut -d'/' -f2)
+        activityStateLine=$(sed -n "$((linecount + 2))p" "$input")
+        SAVEIFS=$IFS
+        IFS=' ' read -r -a array <<< "$activityStateLine"
+        IFS=$SAVEIFS
+        resumedPreManip=$(echo "${array[0]}" | cut -d'=' -f2)
+        resumedDisplay=""
+        if [[ "$resumedPreManip" == true ]]; then
+            resumedDisplay=" - \033[93mActive\033[0m"
+        fi
+        echo ""
+        echo -e "${activitycolor}$activityDisplayLine${reset}$resumedDisplay"
+    fi
+
+    if [[ "$withinActivityBlock" == true ]]; then
+        fragmentLine=$(echo "$line" | grep "^\ \ \ \ Added Fragments\:") #The starting spaces is what makes this work
+        if ! [[ -z "$fragmentLine" ]]; then
+            withinActivityBlock=false
+            fragments=$(sed -n "$((linecount + 1)),/^[[:space:]]*Back\ Stack/p" "$input" | grep -n "^\ \ \ \ \ \ #")
+            SAVEIFS=$IFS
+            IFS=$'\n'
+            fragmentlist=($fragments)
+            IFS=$SAVEIFS
+            for ((elm=0;elm<${#fragmentlist[@]};elm++))
+            do
+                element="${fragmentlist[$elm]}"
+                eachFragWithObj=$(echo "$element" | tr -s ' ' | cut -d' ' -f3)
+                eachFragment=$(echo "$eachFragWithObj" | cut -d'{' -f1)
+                eachObject=$(echo "$eachFragWithObj" | cut -d'{' -f2 | cut -d'}' -f1)
+                if [[ $((elm+1)) == ${#fragmentlist[@]} ]]; then
+                    echo -e "└─ ${fragmentcolor}$eachFragment${reset} - ${objectcolor}$eachObject${reset}"
+                else
+                    echo -e "├─ ${fragmentcolor}$eachFragment${reset} - ${objectcolor}$eachObject${reset}"
+                fi
+                #Above are Top Level
+                #Below are children and onwards
+                getChildren "$eachFragment" "$eachObject" 1
+            done
+        fi
+    fi
+done < "$input"
+
+echo ""
+rm "$dsFileName"
