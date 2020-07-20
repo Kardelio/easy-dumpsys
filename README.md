@@ -12,6 +12,15 @@ It turns the huge output from adb dumpsys into a nice UI tree that shows activit
 
 ![Image showing difference between adb and easy-dumpsys](eds.png)
 
+## Requirements
+
+easy-dumpsys requires that you have adb installed on your system (https://developer.android.com/studio/command-line/adb).
+
+ADB is an incredibly important android utility that lets your computer talk to your android device and do things such as install debug apps onto said device and much more.
+
+easy-dumpsys uses adb as the underlying tool and simply parses the big scary adb output into something more readable.
+
+Also easy-dumpsys can optionally use fzf (explained below) to give you an interactive picker to select your application from a list, this is just a nice additional extra and is not necessary to run the script, if you do wish to use this features then you will also need fzf installed.
 
 ## How to use...
 
