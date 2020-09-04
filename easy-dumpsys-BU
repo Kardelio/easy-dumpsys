@@ -8,20 +8,14 @@ linecount=0
 withinActivityBlock=false
 timestamp=$(date +%s)
 dsFileName=".ds_temp_file_$timestamp"
-keepFile=false
-NL=$'\n'
 
-while getopts kh flag
+
+while getopts u:h flag
 do
     case "${flag}" in
         h) 
             echo "TODO: Print help"
             exit 0
-        ;;
-        k) 
-            echo "Keeping the file: $dsFileName"
-            keepFile=true
-            shift 1
         ;;
     esac
 done
@@ -48,12 +42,13 @@ fi
 adb shell dumpsys activity "$package" > "$dsFileName"
 
 sed -i '' 's/Active Fragments://g' "$dsFileName"
-lineOne="$(grep -A 3 "^\ \ ACTIVITY" "$dsFileName")"
-lineTwo="$(grep -B 6 "^[[:space:]]*mFragmentManager=FragmentManager" "$dsFileName")"
-lineThree="$(sed -n '/^\ \ \ \ Added\ Fragments\:/,/^\ \ \ \ Back\ Stack\:/p' "$dsFileName")"
-newInput="${lineOne}${NL}${lineTwo}${NL}${lineThree}"
-echo -e "$newInput" > "$dsFileName"
 
+#New thought, delete all lines that dont match patterns we are interseted in...
+
+
+#WORKS#sed -i '' '/^InsetsController/,/^[[:space:]]*Looper/d' "$dsFileName"
+#Below works nicely too
+sed -i '' '/^[[:space:]]*PhoneWindow/,/^[[:space:]]*Local\ FragmentActivity/d' "$dsFileName"
 input="$dsFileName"
 
 #RECURSIVE function TODO
@@ -167,7 +162,6 @@ do
         fi
     fi
 done < "$input"
-echo "" 
-if [[ "$keepFile" = false ]]; then
-    rm "$dsFileName"
-fi
+
+echo ""
+rm "$dsFileName"
