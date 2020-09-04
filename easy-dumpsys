@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env bash 
 activitycolor="\033[44;93m"
 fragmentcolor="\033[95m"
 objectcolor="\033[2m"
@@ -8,6 +8,17 @@ linecount=0
 withinActivityBlock=false
 timestamp=$(date +%s)
 dsFileName=".ds_temp_file_$timestamp"
+
+
+while getopts u:h flag
+do
+    case "${flag}" in
+        h) 
+            echo "TODO: Print help"
+            exit 0
+        ;;
+    esac
+done
 
 package=$1
 if [ $# -eq 0 ]; then
@@ -20,6 +31,10 @@ if [ $# -eq 0 ]; then
         packToUse=$(adb shell pm list package -3 | fzf | cut -d':' -f2)
         echo "Using package: $packToUse"
         package="$packToUse"
+        if [[ -z "$package" ]]; then
+            echo "No package provided!"
+            exit 1
+        fi
     fi
 fi
 
@@ -28,16 +43,22 @@ adb shell dumpsys activity "$package" > "$dsFileName"
 sed -i '' 's/Active Fragments://g' "$dsFileName"
 input="$dsFileName"
 
+#RECURSIVE function TODO
 function getChildren(){
+    #$1 - fragmentname, $2 - fragtmentObjectNum, $3 - depth, $4 - parentColumns
     local parentCols="$4"
     local dep=$3
+    #gets all lines and the 6 lines after it (aka the blocks) MULTIPLE BLOCKS aka how many kids it has
+    #where the line is the fragement from $1{$2}
     local grepBlockTopLevelCF=$(grep -B 6 "^[[:space:]]*mFragmentManager=FragmentManager.*$1{$2}" "$input")
+    #NOTE unnecesasy check
     if ! [[ -z "$grepBlockTopLevelCF" ]]; then
         maxlines=$(echo "$grepBlockTopLevelCF" | wc -l)
         numOfKids=$((maxlines / 7))
         if [[ $numOfKids -gt 1 ]]; then
             parentCols="$parentCols,$dep"
         fi
+        #TODO another loop here
         for ((n=0;n<$numOfKids;n++))
         do
             i=$((n+1))
@@ -71,6 +92,10 @@ function getChildren(){
     fi
 }
 
+
+#--------------------------
+# Program logic starts here
+#--------------------------
 while IFS= read -r line
 do
     linecount=$((linecount + 1))
@@ -96,24 +121,33 @@ do
         fragmentLine=$(echo "$line" | grep "^\ \ \ \ Added Fragments\:") #The starting spaces is what makes this work
         if ! [[ -z "$fragmentLine" ]]; then
             withinActivityBlock=false
+            #This sed Prints from the line "    Added Fragments:" until the line with "    Back Stack" and only
+            #greps the line that start with # which would be the 
             fragments=$(sed -n "$((linecount + 1)),/^[[:space:]]*Back\ Stack/p" "$input" | grep -n "^\ \ \ \ \ \ #")
             SAVEIFS=$IFS
             IFS=$'\n'
             fragmentlist=($fragments)
             IFS=$SAVEIFS
+            #TODO another loop here
             for ((elm=0;elm<${#fragmentlist[@]};elm++))
             do
                 element="${fragmentlist[$elm]}"
+                #e.g. FragFragment{xxxxx} 
                 eachFragWithObj=$(echo "$element" | tr -s ' ' | cut -d' ' -f3)
+                #e.g. FragFragment
                 eachFragment=$(echo "$eachFragWithObj" | cut -d'{' -f1)
+                #e.g. xxxxx 
                 eachObject=$(echo "$eachFragWithObj" | cut -d'{' -f2 | cut -d'}' -f1)
+                #IF the index (elm) (+1) is same as the amount of fragments in list
                 if [[ $((elm+1)) == ${#fragmentlist[@]} ]]; then
+                    #If its the last in the list it curves off
                     echo -e "└─ ${fragmentcolor}$eachFragment${reset} - ${objectcolor}$eachObject${reset}"
                 else
                     echo -e "├─ ${fragmentcolor}$eachFragment${reset} - ${objectcolor}$eachObject${reset}"
                 fi
                 #Above are Top Level
                 #Below are children and onwards
+                #TODO getChildren contains more loops complexity and time goes up
                 getChildren "$eachFragment" "$eachObject" 1
             done
         fi
