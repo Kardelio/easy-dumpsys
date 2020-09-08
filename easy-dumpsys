@@ -12,6 +12,21 @@ mapFile=".ds_temp_map_file_$timestamp"
 keepFile=false
 useSpecificFile=""
 
+#TODO:
+# Turns out that applications have fragments like this:
+# ······#1:·RestaurantListContent{2602624·#1·id=0x7f0a00f1·RestaurantListContent}$
+# DEALT with above ^ DONE
+#1. Also pull out fragment TAGs from original line...
+#    mTag from line below the original
+#2. Also pull out fragent mState list below: from 2 lines below original
+#    static final int INVALID_STATE = -1;   // Invalid state used as a null value.
+#    static final int INITIALIZING = 0;     // Not yet created.
+#    static final int CREATED = 1;          // Created.
+#    static final int ACTIVITY_CREATED = 2; // The activity has finished its creation.
+#    static final int STOPPED = 3;          // Fully created, not started.
+#    static final int STARTED = 4;          // Created and started, not resumed.
+#    static final int RESUMED = 5;          // Created started and resumed.
+
 while getopts khf: flag
 do
     case "${flag}" in
@@ -66,7 +81,9 @@ do
         echo "$line" >> "$simpleFile"
         statusLine=$(sed -n "$((lineIterator + 2))p" "$dsFileName")
         echo "### $statusLine" >> "$simpleFile"
-    elif [[ "$line" =~ [[:space:]]{2,}[a-zA-Z1-9]+\{[a-z0-9]+\}\ \( ]]; then
+    #elif [[ "$line" =~ [[:space:]]{2,}[a-zA-Z1-9]+\{[a-z0-9]+\}\ \( ]]; then
+    elif [[ "$line" =~ \ [a-zA-Z1-9]+\{[a-z0-9\}]+\ .*id\= ]]; then
+        #TODO fragmetns not picked up here
         echo "$line" >> "$simpleFile"
     fi
 done < "$dsFileName"
@@ -94,14 +111,16 @@ do
         fi
         echo "A $activityDisplayLine $ext" >> "$mapFile"
         activityMap["$activityCounter"]="$simpleLineIterator"
-    elif [[ "$line" =~ [[:space:]]{2,}[a-zA-Z1-9]+\{[a-z0-9]+\}\ \( ]]; then
+    #elif [[ "$line" =~ [[:space:]]{2,}[a-zA-Z1-9]+\{[a-z0-9]+\}\ \( ]]; then
+    elif [[ "$line" =~ \ [a-zA-Z1-9]+\{[a-z0-9\}]+\ .*id\= ]]; then
         numberOfSpace=$(printf "$line" | awk -F'[^ ]' '{print length($1),NR}' | awk '{print $1}')
         if [[ ! "$numberOfSpace" == 4 ]] && [[ ! "$numberOfSpace" == 6 ]]; then
             levelA=$((numberOfSpace - levelOneConstant))
             levelB=$((levelA / levelIterator))
             level=$((levelB + 1))
         fi
-        wholeFragment=$(printf "$line" | perl -nle 'm/([a-zA-Z0-9]*{[a-z0-9]*})/; print $1')
+        #wholeFragment=$(printf "$line" | perl -nle 'm/([a-zA-Z0-9]*{[a-z0-9]*})/; print $1')
+        wholeFragment=$(printf "$line" | perl -nle 'm/([a-zA-Z0-9]*{[a-z0-9}]*)/; print $1')
         echo "F $wholeFragment $level" >> "$mapFile"
     else
         echo "- - -" >> "$mapFile"
@@ -174,8 +193,10 @@ do
                 fi
             fi
         done
+        #might not have closing bracket
         fr=$(printf "$part2" | cut -d'{' -f1)
-        oc=$(printf "$part2" | cut -d'{' -f2 | cut -d'}' -f1)
+        oc=$(printf "$part2" | cut -d'{' -f2 | sed 's/\}//g')
+        #oc=$(printf "$part2" | cut -d'{' -f2 | cut -d'}' -f1)
         printf "${fragmentcolor}${fr}${reset} - ${objectcolor}${oc}${reset}\n"
     fi
 done < "$mapFile"
