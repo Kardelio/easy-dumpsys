@@ -3,6 +3,7 @@ activitycolor="\033[44;93m"
 fragmentcolor="\033[95m"
 infocolor="\033[36m"
 objectcolor="\033[2m"
+packagecolor="\033[36;2m"
 reset="\033[0m"
 
 timestamp=$(date +%s)
@@ -73,6 +74,9 @@ else
     cat "$useSpecificFile" > "$dsFileName"
 fi
 
+sed -i '' '/Added\ Fragments\:/,/FragmentManager\ misc\ state\:/d' "$dsFileName"
+sed -i '' '/Child\ FragmentManager/d' "$dsFileName"
+
 lineIterator=0
 while IFS= read -r line
 do
@@ -82,7 +86,13 @@ do
         statusLine=$(sed -n "$((lineIterator + 2))p" "$dsFileName")
         echo "### $statusLine" >> "$simpleFile"
     #elif [[ "$line" =~ [[:space:]]{2,}[a-zA-Z1-9]+\{[a-z0-9]+\}\ \( ]]; then
-    elif [[ "$line" =~ \ [a-zA-Z1-9]+\{[a-z0-9\}]+\ .*id\= ]]; then
+    #delete all lines Added Fragments:
+    # and FragmentManager misc state: 
+    #sed '/Added\ Fragments\:/,/FragmentManager\ misc/d'
+    #find spaces and 
+    #\ [a-zA-Z0-9]*\{[0-9a-z\}]*\ .*-.*-.*-.*-
+    #elif [[ "$line" =~ \ [a-zA-Z1-9]+\{[a-z0-9\}]+\ .*id\= ]]; then
+    elif [[ "$line" =~ \ [a-zA-Z1-9]+\{[a-z0-9\}]+\  ]]; then
         #TODO fragmetns not picked up here
         echo "$line" >> "$simpleFile"
     fi
@@ -109,21 +119,27 @@ do
         if [[ "$resumedPreManip" == true ]]; then
             ext="Active" 
         fi
-        echo "A $activityDisplayLine $ext" >> "$mapFile"
+        echo "A $activityDisplayLine $ext -" >> "$mapFile"
         activityMap["$activityCounter"]="$simpleLineIterator"
     #elif [[ "$line" =~ [[:space:]]{2,}[a-zA-Z1-9]+\{[a-z0-9]+\}\ \( ]]; then
-    elif [[ "$line" =~ \ [a-zA-Z1-9]+\{[a-z0-9\}]+\ .*id\= ]]; then
+    #elif [[ "$line" =~ \ [a-zA-Z1-9]+\{[a-z0-9\}]+\ .*id\= ]]; then
+    elif [[ "$line" =~ \ [a-zA-Z1-9]+\{[a-z0-9\}]+\  ]]; then
         numberOfSpace=$(printf "$line" | awk -F'[^ ]' '{print length($1),NR}' | awk '{print $1}')
-        if [[ ! "$numberOfSpace" == 4 ]] && [[ ! "$numberOfSpace" == 6 ]]; then
+        #if [[ ! "$numberOfSpace" == 4 ]] && [[ ! "$numberOfSpace" == 6 ]]; then
+        if [[ ! "$numberOfSpace" == 4 ]] && [[ ! "$numberOfSpace" == 6 ]] && [[ ! "$numberOfSpace" == 8 ]]; then
             levelA=$((numberOfSpace - levelOneConstant))
             levelB=$((levelA / levelIterator))
             level=$((levelB + 1))
         fi
-        #wholeFragment=$(printf "$line" | perl -nle 'm/([a-zA-Z0-9]*{[a-z0-9]*})/; print $1')
         wholeFragment=$(printf "$line" | perl -nle 'm/([a-zA-Z0-9]*{[a-z0-9}]*)/; print $1')
-        echo "F $wholeFragment $level" >> "$mapFile"
+        externalPackager=$(printf "$line" | perl -nle 'm/([a-z0-9A-Z_]*(\.[A-Za-z0-9_]+)+[A-Z0-9a-z_]*)/; print $1')
+        if [[ -z "$externalPackager" ]]; then
+            echo "F $wholeFragment $level -" >> "$mapFile"
+        else
+            echo "F $wholeFragment $level $externalPackager" >> "$mapFile"
+        fi
     else
-        echo "- - -" >> "$mapFile"
+        echo "- - - -" >> "$mapFile"
     fi
 done < "$simpleFile"
 
@@ -137,6 +153,7 @@ do
     part1=$(echo "$line" | awk '{print $1}')
     part2=$(echo "$line" | awk '{print $2}')
     part3=$(echo "$line" | awk '{print $3}')
+    part4=$(echo "$line" | awk '{print $4}')
     if [[ "$part1" == "A" ]]; then
         unset barMap
         currentActivtyNum=$((currentActivtyNum+1))
@@ -197,7 +214,11 @@ do
         fr=$(printf "$part2" | cut -d'{' -f1)
         oc=$(printf "$part2" | cut -d'{' -f2 | sed 's/\}//g')
         #oc=$(printf "$part2" | cut -d'{' -f2 | cut -d'}' -f1)
-        printf "${fragmentcolor}${fr}${reset} - ${objectcolor}${oc}${reset}\n"
+        if [[ "$part4" != "-" ]]; then
+            printf "${fragmentcolor}${fr}${reset} - ${objectcolor}${oc} ${packagecolor}(${part4})${reset}\n"
+        else
+            printf "${fragmentcolor}${fr}${reset} - ${objectcolor}${oc}${reset}\n"
+        fi
     fi
 done < "$mapFile"
 
