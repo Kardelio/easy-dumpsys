@@ -6,6 +6,9 @@ objectcolor="\033[2m"
 packagecolor="\033[36;2m"
 reset="\033[0m"
 
+DIR=$(dirname "$0")
+versionFile="$DIR/.version"
+
 timestamp=$(date +%s)
 dsFileName=".ds_temp_file_$timestamp"
 simpleFile=".ds_temp_simple_file_$timestamp"
@@ -28,11 +31,15 @@ useSpecificFile=""
 #    static final int STARTED = 4;          // Created and started, not resumed.
 #    static final int RESUMED = 5;          // Created started and resumed.
 
-while getopts khf: flag
+while getopts khf:v flag
 do
     case "${flag}" in
         h) 
             echo "TODO: Print help"
+            exit 0
+        ;;
+        v)
+            echo "Easy-Dumpsys Version: $(cat "$versionFile")"
             exit 0
         ;;
         k) 
