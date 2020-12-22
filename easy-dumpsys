@@ -30,6 +30,7 @@ useSpecificFile=""
 #    static final int STOPPED = 3;          // Fully created, not started.
 #    static final int STARTED = 4;          // Created and started, not resumed.
 #    static final int RESUMED = 5;          // Created started and resumed.
+#What is state 7?
 
 while getopts khf:v flag
 do
