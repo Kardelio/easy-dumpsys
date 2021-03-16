@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+taskcolor="\033[0;30;107m"
+taskcolorDim="\033[2;30;107m"
 activitycolor="\033[44;93m"
 fragmentcolor="\033[95m"
 infocolor="\033[36m"
@@ -88,23 +90,44 @@ sed -i '' '/Child\ FragmentManager/d' "$dsFileName"
 lineIterator=0
 while IFS= read -r line
 do
+#TODO Tasks
+#TASK 10273:com.babbel.mobile.android.en id=154 userId=0
     lineIterator=$((lineIterator + 1))
-    if [[ "$line" =~ "  ACTIVITY".* ]]; then
-        echo "$line" >> "$simpleFile"
-        statusLine=$(sed -n "$((lineIterator + 2))p" "$dsFileName")
-        echo "### $statusLine" >> "$simpleFile"
     #elif [[ "$line" =~ [[:space:]]{2,}[a-zA-Z1-9]+\{[a-z0-9]+\}\ \( ]]; then
     #delete all lines Added Fragments:
     # and FragmentManager misc state: 
     #sed '/Added\ Fragments\:/,/FragmentManager\ misc/d'
     #find spaces and 
     #\ [a-zA-Z0-9]*\{[0-9a-z\}]*\ .*-.*-.*-.*-
-    #elif [[ "$line" =~ \ [a-zA-Z1-9]+\{[a-z0-9\}]+\ .*id\= ]]; then
+	#elif [[ "$line" =~ \ [a-zA-Z1-9]+\{[a-z0-9\}]+\ .*id\= ]]; then
+    if [[ "$line" =~ "TASK".*  ]]; then
+		#16-03-2021 - Adding task seems to work fine doesnt break anything
+		echo "$line" >> "$simpleFile"
+    elif [[ "$line" =~ "  ACTIVITY".* ]]; then
+        echo "$line" >> "$simpleFile"
+        statusLine=$(sed -n "$((lineIterator + 2))p" "$dsFileName")
+        echo "### $statusLine" >> "$simpleFile"
     elif [[ "$line" =~ \ [a-zA-Z1-9]+\{[a-z0-9\}]+\  ]]; then
         #TODO fragmetns not picked up here
         echo "$line" >> "$simpleFile"
     fi
 done < "$dsFileName"
+
+#TASK 10273:com.babbel.mobile.android.en id=154 userId=0
+#  ACTIVITY com.babbel.mobile.android.en/com.babbel.mobile.android.core.presentation.mainactivity.screens.MainActivity b335371 pid=19503
+####       mResumed=false mStopped=true mFinished=false
+#        #0: ReportFragment{a95b7f6 #0 androidx.lifecycle.LifecycleDispatcher.report_fragment_tag}
+#      mCreated=true mResumed=false mStopped=true    Active Fragments:    OnboardingScreen{f912a8} (16cc3757-abaf-4e41-b243-e366c7302bed) id=0x7f0a0199 com.babbel.mobile.android.core.presentation.onboarding.screens.OnboardingScreen}
+#          Active Fragments:          OnboardingPageScreen{cd9b8a7} (ff4989e6-aaf6-4360-91cc-6acefc360b5f) id=0x7f0a0587}
+#          OnboardingPageScreen{a1959f2} (82ed986a-86e3-4880-9c03-a559d645ca8e) id=0x7f0a0587}
+#    SplashScreen{d5f233e} (215e56df-c30f-4597-878f-5d2d7bb5d2f7) id=0x7f0a0199 com.babbel.mobile.android.core.presentation.splashscreen.screens.SplashScreen}
+#    SupportRequestManagerFragment{e6f9ab5} (d7773d64-f823-4cc6-a560-f28e8fa8098b) com.bumptech.glide.manager}{parent=null}
+#TASK 10273:com.babbel.mobile.android.en id=154 userId=0
+#  ACTIVITY com.babbel.mobile.android.en/com.babbel.mobile.android.core.presentation.devconfig.view.DevConfigActivity 513f114 pid=19503
+####       mResumed=true mStopped=false mFinished=false
+#        #0: ReportFragment{63a64dc #0 androidx.lifecycle.LifecycleDispatcher.report_fragment_tag}
+#      mCreated=true mResumed=true mStopped=false    Active Fragments:    OverrideFragment{78233f7} (65ce9eee-8930-4681-9b32-5ba0abb9b89a) f0}
+
 
 declare -A activityMap
 levelOneConstant=10
@@ -115,7 +138,10 @@ while IFS= read -r line
 do
     level=0
     simpleLineIterator=$((simpleLineIterator + 1))
-    if [[ "$line" =~ "  ACTIVITY".* ]]; then
+    if [[ "$line" =~ "TASK".* ]]; then
+        taskName=$(echo "$line" | awk '{print $2}' | cut -d':' -f2)
+        echo "T $taskName - -" >> "$mapFile"
+    elif [[ "$line" =~ "  ACTIVITY".* ]]; then
         activityCounter=$((activityCounter+1))
         activityDisplayLine=$(printf "$line" | sed -e 's/^[[:space:]]*//' | cut -d' ' -f2 | cut -d'/' -f2)
         activityStateLine=$(sed -n "$((simpleLineIterator + 1))p" "$simpleFile")
@@ -162,7 +188,11 @@ do
     part2=$(echo "$line" | awk '{print $2}')
     part3=$(echo "$line" | awk '{print $3}')
     part4=$(echo "$line" | awk '{print $4}')
-    if [[ "$part1" == "A" ]]; then
+    if [[ "$part1" == "T" ]]; then
+        echo ""
+        #printf "TASK: ${taskcolor}---> $part2 <---${reset}\n"
+        printf "${taskcolorDim}--->${taskcolor} $part2 ${taskcolorDim}<---${reset}\n"
+    elif [[ "$part1" == "A" ]]; then
         unset barMap
         currentActivtyNum=$((currentActivtyNum+1))
         activeStatus=""
