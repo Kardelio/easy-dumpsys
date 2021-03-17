@@ -1,0 +1,47 @@
+switch (mViewFlags&VISIBILITY_MASK) {
+            case VISIBLE: out.append('V'); break;
+            case INVISIBLE: out.append('I'); break;
+            case GONE: out.append('G'); break;
+            default: out.append('.'); break;
+        }
+        out.append((mViewFlags & FOCUSABLE) == FOCUSABLE ? 'F' : '.');
+        out.append((mViewFlags&ENABLED_MASK) == ENABLED ? 'E' : '.');
+        out.append((mViewFlags&DRAW_MASK) == WILL_NOT_DRAW ? '.' : 'D');
+        out.append((mViewFlags&SCROLLBARS_HORIZONTAL) != 0 ? 'H' : '.');
+        out.append((mViewFlags&SCROLLBARS_VERTICAL) != 0 ? 'V' : '.');
+        out.append((mViewFlags&CLICKABLE) != 0 ? 'C' : '.');
+        out.append((mViewFlags&LONG_CLICKABLE) != 0 ? 'L' : '.');
+        out.append((mViewFlags&CONTEXT_CLICKABLE) != 0 ? 'X' : '.');
+        out.append(' ');
+        out.append((mPrivateFlags&PFLAG_IS_ROOT_NAMESPACE) != 0 ? 'R' : '.');
+        out.append((mPrivateFlags&PFLAG_FOCUSED) != 0 ? 'F' : '.');
+        out.append((mPrivateFlags&PFLAG_SELECTED) != 0 ? 'S' : '.');
+        if ((mPrivateFlags&PFLAG_PREPRESSED) != 0) {
+            out.append('p');
+        } else {
+            out.append((mPrivateFlags&PFLAG_PRESSED) != 0 ? 'P' : '.');
+        }
+        out.append((mPrivateFlags&PFLAG_HOVERED) != 0 ? 'H' : '.');
+        out.append((mPrivateFlags&PFLAG_ACTIVATED) != 0 ? 'A' : '.');
+        out.append((mPrivateFlags&PFLAG_INVALIDATED) != 0 ? 'I' : '.');
+        out.append((mPrivateFlags&PFLAG_DIRTY_MASK) != 0 ? 'D' : '.');
+
+
+https://android.googlesource.com/platform/frameworks/base/+/refs/heads/android11-release/core/java/android/view/View.java#6442
+
+
+
+
+(4)
+    View Hierarchy:
+
+    Looper (main, tid 2) {70b234c}
+(4)
+
+
+Just child nodes
+
+go line by line
+if next line is equal in indent
+or less than then this is a child node
+

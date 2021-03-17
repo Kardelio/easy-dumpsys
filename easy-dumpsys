@@ -18,6 +18,8 @@ mapFile=".ds_temp_map_file_$timestamp"
 keepFile=false
 useSpecificFile=""
 
+argsCount=$#
+
 #TODO:
 # Turns out that applications have fragments like this:
 # ······#1:·RestaurantListContent{2602624·#1·id=0x7f0a00f1·RestaurantListContent}$
@@ -34,6 +36,71 @@ useSpecificFile=""
 #    static final int RESUMED = 5;          // Created started and resumed.
 #What is state 7?
 
+function selectAndPreparePackage(){
+    package=$1
+    if [ $argsCount -eq 0 ] && [ -z "$useSpecificFile" ]; then
+        fzf_installed=$(which fzf)
+        if [[ -z ${fzf_installed} ]]; then
+            echo "FZF is NOT installed so you can not use the interactive package picker"
+            echo "Install FZF to enable this feature"
+            exit 1
+        else
+            packToUse=$(adb shell pm list package -3 | fzf | cut -d':' -f2)
+            echo "Using package: $packToUse"
+            package="$packToUse"
+            if [[ -z "$package" ]]; then
+                echo "No package provided!"
+                exit 1
+            fi
+        fi
+    fi
+
+    # The all important adb dumpsys command
+    if [[ -z "$useSpecificFile" ]]; then
+        adb shell dumpsys activity "$package" > "$dsFileName"
+    else
+        cat "$useSpecificFile" > "$dsFileName"
+    fi
+
+    sed -i '' '/Added\ Fragments\:/,/FragmentManager\ misc\ state\:/d' "$dsFileName"
+    sed -i '' '/Child\ FragmentManager/d' "$dsFileName"
+}
+
+function cleanUpDSFile(){
+    if [[ "$keepFile" = false ]]; then
+        rm "$dsFileName"
+    fi
+}
+
+function getIndentAmount(){
+    local indent=$(echo "$1" | sed 's/[a-zA-Z0-9].*//g' | wc -c | sed 's/[[:space:]]//g')
+    indent=$((indent - 1))
+    echo "$indent"
+}
+
+function printElement(){
+    local class=$(echo "$1" | cut -d{ -f1)
+    local id=$(echo "$1" | awk '{print $NF}' | sed 's/}//g')
+    local status=$(echo "$1" | awk '{print $2}')
+    #V = visible, I = invisible, G = gone
+    local vis=$(echo "${status:0:1}")
+    echo "$class - $id - $vis"
+}
+
+function viewHierarchy(){
+    lineIter=1
+    while IFS= read -r line
+    do
+        currentIndent=$(getIndentAmount "$line")
+        nextLine=$(sed -n $((lineIter + 1))p vh-ex.txt)
+        nextIndent=$(getIndentAmount "$nextLine")
+        if [[ "$nextIndent" -le "$currentIndent" ]]; then
+            printElement "$line"
+        fi 
+        lineIter=$((lineIter + 1))
+    done < "$1" #File to read from
+}
+
 while getopts khf:v flag
 do
     case "${flag}" in
@@ -42,7 +109,12 @@ do
             exit 0
         ;;
         v)
-            echo "Easy-Dumpsys Version: $(cat "$versionFile")"
+            shift 1
+            selectAndPreparePackage "$1"
+            sed -i '' '1,/^[[:space:]]*View\ H/d;/^[[:space:]]*Looper/,$d' "$dsFileName"
+            viewHierarchy "$dsFileName"
+            cleanUpDSFile
+            #echo "Easy-Dumpsys Version: $(cat "$versionFile")"
             exit 0
         ;;
         k) 
@@ -59,33 +131,7 @@ do
     esac
 done
 
-package=$1
-if [ $# -eq 0 ] && [ -z "$useSpecificFile" ]; then
-    fzf_installed=$(which fzf)
-    if [[ -z ${fzf_installed} ]]; then
-        echo "FZF is NOT installed so you can not use the interactive package picker"
-        echo "Install FZF to enable this feature"
-        exit 1
-    else
-        packToUse=$(adb shell pm list package -3 | fzf | cut -d':' -f2)
-        echo "Using package: $packToUse"
-        package="$packToUse"
-        if [[ -z "$package" ]]; then
-            echo "No package provided!"
-            exit 1
-        fi
-    fi
-fi
-
-# The all important adb dumpsys command
-if [[ -z "$useSpecificFile" ]]; then
-    adb shell dumpsys activity "$package" > "$dsFileName"
-else
-    cat "$useSpecificFile" > "$dsFileName"
-fi
-
-sed -i '' '/Added\ Fragments\:/,/FragmentManager\ misc\ state\:/d' "$dsFileName"
-sed -i '' '/Child\ FragmentManager/d' "$dsFileName"
+selectAndPreparePackage "$1"
 
 lineIterator=0
 while IFS= read -r line
@@ -261,8 +307,6 @@ do
 done < "$mapFile"
 
 printf "\n" 
-if [[ "$keepFile" = false ]]; then
-    rm "$dsFileName"
-fi
+cleanUpDSFile
 rm "$simpleFile"
 rm "$mapFile"
