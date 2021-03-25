@@ -5,6 +5,8 @@ class EasyDumpsys < Formula
   sha256 "c722bb64dcd133f55c4b7b427dbaee29d8d94eb7681777264985f7adc5323277"
   license "GPL-3.0"
 
+  depends_on "fzf"
+
   def install
     bin.install "easy-dumpsys"
   end

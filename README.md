@@ -22,6 +22,17 @@ easy-dumpsys uses adb as the underlying tool and simply parses the big scary adb
 
 Also easy-dumpsys can optionally use fzf (explained below) to give you an interactive picker to select your application from a list, this is just a nice additional extra and is not necessary to run the script, if you do wish to use this features then you will also need fzf installed.
 
+## Installation
+
+Now you can easily install easy-dumpsys view brew: (Hooray)
+
+```
+    brew tap kardelio/easy-dumpsys
+    brew install easy-dumpsys
+```
+
+Or you can download this repo and add the script called `easy-dumpsys` to your path.
+
 ## How to use...
 
 Simply ensure you have permissions to run the script and then run it...
