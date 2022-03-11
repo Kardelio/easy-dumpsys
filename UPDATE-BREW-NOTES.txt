@@ -20,4 +20,33 @@ How to update package for brew
 
 7. copy the new sha256 code that is output and put this into the formula file
 
+8. add and commit and push
 
+9. run 2 commands
+
+    brew update (to update the the taps)
+    brew upgrade (to actually upgrade the version)
+
+10. use these commands to help
+
+    brew info <package>
+    brew list
+    brew search <package>
+
+
+ ___   _____ _   _ ___ _   _ _  __
+|_ _| |_   _| | | |_ _| \ | | |/ /
+ | |    | | | |_| || ||  \| | ' / 
+ | |    | | |  _  || || |\  | . \ 
+|___|   |_| |_| |_|___|_| \_|_|\_\
+                                  
+
+that 
+https://docs.brew.sh/How-to-Create-and-Maintain-a-Tap
+this is important
+
+brew tap user/repo 
+
+to tell brew about this custom tap
+
+then brew install <package>
