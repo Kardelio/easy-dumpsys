@@ -3,6 +3,7 @@ taskcolor="\033[0;30;107m"
 taskcolorDim="\033[2;30;107m"
 activitycolor="\033[44;93m"
 fragmentcolor="\033[95m"
+tagcolor="\033[92m"
 infocolor="\033[36m"
 objectcolor="\033[2m"
 packagecolor="\033[36;2m"
@@ -35,6 +36,7 @@ argsCount=$#
 #    static final int STARTED = 4;          // Created and started, not resumed.
 #    static final int RESUMED = 5;          // Created started and resumed.
 #What is state 7?
+#state 7 seems to be the fragment ontop and visible
 
 function selectAndPreparePackage(){
     package=$1
@@ -155,6 +157,7 @@ do
         echo "### $statusLine" >> "$simpleFile"
     elif [[ "$line" =~ \ [a-zA-Z1-9]+\{[a-z0-9\}]+\  ]]; then
         #TODO fragmetns not picked up here
+        echo ":::::" >> "$simpleFile"
         echo "$line" >> "$simpleFile"
     fi
 done < "$dsFileName"
@@ -186,7 +189,7 @@ do
     simpleLineIterator=$((simpleLineIterator + 1))
     if [[ "$line" =~ "TASK".* ]]; then
         taskName=$(echo "$line" | awk '{print $2}' | cut -d':' -f2)
-        echo "T $taskName - -" >> "$mapFile"
+        echo "T $taskName - - -" >> "$mapFile"
     elif [[ "$line" =~ "  ACTIVITY".* ]]; then
         activityCounter=$((activityCounter+1))
         activityDisplayLine=$(printf "$line" | sed -e 's/^[[:space:]]*//' | cut -d' ' -f2 | cut -d'/' -f2)
@@ -199,7 +202,7 @@ do
         if [[ "$resumedPreManip" == true ]]; then
             ext="Active" 
         fi
-        echo "A $activityDisplayLine $ext -" >> "$mapFile"
+        echo "A $activityDisplayLine $ext - -" >> "$mapFile"
         activityMap["$activityCounter"]="$simpleLineIterator"
     #elif [[ "$line" =~ [[:space:]]{2,}[a-zA-Z1-9]+\{[a-z0-9]+\}\ \( ]]; then
     #elif [[ "$line" =~ \ [a-zA-Z1-9]+\{[a-z0-9\}]+\ .*id\= ]]; then
@@ -212,14 +215,21 @@ do
             level=$((levelB + 1))
         fi
         wholeFragment=$(printf "$line" | perl -nle 'm/([a-zA-Z0-9]*{[a-z0-9}]*)/; print $1')
+        fragmentTag=$(printf "$line" | perl -nle 'm/(tag=([a-zA-Z0-9-_]+))/; print $2')
+        if [[ -z "$fragmentTag" ]]; then
+            echo "No Tag found"
+            fragmentTag="-"
+        else
+            echo "Fragment tag: $fragmentTag"
+        fi
         externalPackager=$(printf "$line" | perl -nle 'm/([a-z0-9A-Z_]*(\.[A-Za-z0-9_]+)+[A-Z0-9a-z_]*)/; print $1')
         if [[ -z "$externalPackager" ]]; then
-            echo "F $wholeFragment $level -" >> "$mapFile"
+            echo "F $wholeFragment $level - ${fragmentTag}" >> "$mapFile"
         else
-            echo "F $wholeFragment $level $externalPackager" >> "$mapFile"
+            echo "F $wholeFragment $level $externalPackager ${fragmentTag}" >> "$mapFile"
         fi
     else
-        echo "- - - -" >> "$mapFile"
+        echo "- - - - -" >> "$mapFile"
     fi
 done < "$simpleFile"
 
@@ -234,6 +244,7 @@ do
     part2=$(echo "$line" | awk '{print $2}')
     part3=$(echo "$line" | awk '{print $3}')
     part4=$(echo "$line" | awk '{print $4}')
+    part5=$(echo "$line" | awk '{print $5}')
     if [[ "$part1" == "T" ]]; then
         echo ""
         #printf "TASK: ${taskcolor}---> $part2 <---${reset}\n"
@@ -297,11 +308,16 @@ do
         #might not have closing bracket
         fr=$(printf "$part2" | cut -d'{' -f1)
         oc=$(printf "$part2" | cut -d'{' -f2 | sed 's/\}//g')
+        
+        tagForFrag=" "
+        if [[ "$part5" != "-" ]]; then
+            tagForFrag=" ${tagcolor}(${part5})${reset} "
+        fi
         #oc=$(printf "$part2" | cut -d'{' -f2 | cut -d'}' -f1)
         if [[ "$part4" != "-" ]]; then
-            printf "${fragmentcolor}${fr}${reset} - ${objectcolor}${oc} ${packagecolor}(${part4})${reset}\n"
+            printf "${fragmentcolor}${fr}${reset}${tagForFrag}- ${objectcolor}${oc} ${packagecolor}(${part4})${reset}\n"
         else
-            printf "${fragmentcolor}${fr}${reset} - ${objectcolor}${oc}${reset}\n"
+            printf "${fragmentcolor}${fr}${reset}${tagForFrag}- ${objectcolor}${oc}${reset}\n"
         fi
     fi
 done < "$mapFile"
