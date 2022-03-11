@@ -1,0 +1,23 @@
+How to update package for brew
+
+1. git tag latest commit
+    
+    git tag vx.x.x
+
+2. push tag
+
+    git push origin vx.x.x
+
+3. on github publish a new release using this tag
+
+4. in project open brew formula file and remove sha256 line
+
+5. also update the url to match the new version release
+
+6. run this command:
+    
+    brew fetch <formula_file.rb> --build-from-source
+
+7. copy the new sha256 code that is output and put this into the formula file
+
+
