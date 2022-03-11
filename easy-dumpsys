@@ -157,7 +157,6 @@ do
         echo "### $statusLine" >> "$simpleFile"
     elif [[ "$line" =~ \ [a-zA-Z1-9]+\{[a-z0-9\}]+\  ]]; then
         #TODO fragmetns not picked up here
-        echo ":::::" >> "$simpleFile"
         echo "$line" >> "$simpleFile"
     fi
 done < "$dsFileName"
@@ -217,10 +216,7 @@ do
         wholeFragment=$(printf "$line" | perl -nle 'm/([a-zA-Z0-9]*{[a-z0-9}]*)/; print $1')
         fragmentTag=$(printf "$line" | perl -nle 'm/(tag=([a-zA-Z0-9-_]+))/; print $2')
         if [[ -z "$fragmentTag" ]]; then
-            echo "No Tag found"
             fragmentTag="-"
-        else
-            echo "Fragment tag: $fragmentTag"
         fi
         externalPackager=$(printf "$line" | perl -nle 'm/([a-z0-9A-Z_]*(\.[A-Za-z0-9_]+)+[A-Z0-9a-z_]*)/; print $1')
         if [[ -z "$externalPackager" ]]; then
