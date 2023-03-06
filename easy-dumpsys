@@ -3,6 +3,7 @@ taskcolor="\033[0;30;107m"
 taskcolorDim="\033[2;30;107m"
 activitycolor="\033[44;93m"
 fragmentcolor="\033[95m"
+fragmentStatecolor="\033[93m"
 tagcolor="\033[92m"
 infocolor="\033[36m"
 objectcolor="\033[2m"
@@ -158,6 +159,8 @@ do
     elif [[ "$line" =~ \ [a-zA-Z1-9]+\{[a-z0-9\}]+\  ]]; then
         #TODO fragmetns not picked up here
         echo "$line" >> "$simpleFile"
+        statusLine=$(sed -n "$((lineIterator + 2))p" "$dsFileName")
+        echo "### $statusLine" >> "$simpleFile"
     fi
 done < "$dsFileName"
 
@@ -188,6 +191,10 @@ do
     simpleLineIterator=$((simpleLineIterator + 1))
     if [[ "$line" =~ "TASK".* ]]; then
         taskName=$(echo "$line" | awk '{print $2}' | cut -d':' -f2)
+        if [[ "$taskName" == "null" ]]; then
+            taskFirstActivity=$(sed -n "$((simpleLineIterator + 1))p" "$simpleFile")
+            taskName=$(echo "$taskFirstActivity" | awk '{print $2}' | cut -d'/' -f1)
+        fi
         echo "T $taskName - - -" >> "$mapFile"
     elif [[ "$line" =~ "  ACTIVITY".* ]]; then
         activityCounter=$((activityCounter+1))
@@ -214,15 +221,17 @@ do
             level=$((levelB + 1))
         fi
         wholeFragment=$(printf "$line" | perl -nle 'm/([a-zA-Z0-9]*{[a-z0-9}]*)/; print $1')
-        fragmentTag=$(printf "$line" | perl -nle 'm/(tag=([a-zA-Z0-9-_]+))/; print $2')
+        fragmentTag=$(printf "$line" | perl -nle 'm/(tag=([a-zA-Z0-9-_.]+))/; print $2')
         if [[ -z "$fragmentTag" ]]; then
             fragmentTag="-"
         fi
         externalPackager=$(printf "$line" | perl -nle 'm/([a-z0-9A-Z_]*(\.[A-Za-z0-9_]+)+[A-Z0-9a-z_]*)/; print $1')
+        fragmentStatusLine=$(sed -n "$((simpleLineIterator + 1))p" "$simpleFile")
+        stateNum=$(echo "$fragmentStatusLine" | awk '{print $2}' | cut -d'=' -f2)
         if [[ -z "$externalPackager" ]]; then
-            echo "F $wholeFragment $level - ${fragmentTag}" >> "$mapFile"
+            echo "F $wholeFragment $level - ${fragmentTag} ${stateNum}" >> "$mapFile"
         else
-            echo "F $wholeFragment $level $externalPackager ${fragmentTag}" >> "$mapFile"
+            echo "F $wholeFragment $level $externalPackager ${fragmentTag} ${stateNum}" >> "$mapFile"
         fi
     else
         echo "- - - - -" >> "$mapFile"
@@ -241,6 +250,7 @@ do
     part3=$(echo "$line" | awk '{print $3}')
     part4=$(echo "$line" | awk '{print $4}')
     part5=$(echo "$line" | awk '{print $5}')
+    part6=$(echo "$line" | awk '{print $6}')
     if [[ "$part1" == "T" ]]; then
         echo ""
         #printf "TASK: ${taskcolor}---> $part2 <---${reset}\n"
@@ -309,11 +319,46 @@ do
         if [[ "$part5" != "-" ]]; then
             tagForFrag=" ${tagcolor}(${part5})${reset} "
         fi
+        stateIcon="▶"
+        case "$part6" in
+            "1") #created
+                stateIcon=""
+                ;;
+            "2") #activity_created
+                stateIcon=""
+                ;;
+            "3") #Stopped
+                stateIcon=""
+                ;;
+            "4") #started
+                stateIcon=""
+                ;;
+            "5") #resumed
+                stateIcon=""
+                ;;
+            "7") #resumed and on screen to user
+                stateIcon="▶ "
+                ;;
+            *)
+                #stateIcon="●"
+                stateIcon=""
+#    static final int INVALID_STATE = -1;   // Invalid state used as a null value.
+#    static final int INITIALIZING = 0;     // Not yet created.
+#    static final int CREATED = 1;          // Created.
+#    static final int ACTIVITY_CREATED = 2; // The activity has finished its creation.
+#    static final int STOPPED = 3;          // Fully created, not started.
+#    static final int STARTED = 4;          // Created and started, not resumed.
+#    static final int RESUMED = 5;          // Created started and resumed.
+                ;;
+        esac
+
         #oc=$(printf "$part2" | cut -d'{' -f2 | cut -d'}' -f1)
         if [[ "$part4" != "-" ]]; then
-            printf "${fragmentcolor}${fr}${reset}${tagForFrag}- ${objectcolor}${oc} ${packagecolor}(${part4})${reset}\n"
+            #printf "${fragmentStatecolor}${stateIcon}${reset}${fragmentcolor}${fr}${reset}${tagForFrag}- ${objectcolor}${oc} ${packagecolor}(${part4})${reset}\n"
+            printf "${fragmentStatecolor}${stateIcon}${reset}${fragmentcolor}${fr}${reset} - ${objectcolor}${oc} ${packagecolor}(${part4})${reset}\n"
         else
-            printf "${fragmentcolor}${fr}${reset}${tagForFrag}- ${objectcolor}${oc}${reset}\n"
+            #printf "${fragmentStatecolor}${stateIcon}${reset}${fragmentcolor}${fr}${reset}${tagForFrag}- ${objectcolor}${oc}${reset}\n"
+            printf "${fragmentStatecolor}${stateIcon}${reset}${fragmentcolor}${fr}${reset} - ${objectcolor}${oc}${reset}\n"
         fi
     fi
 done < "$mapFile"
