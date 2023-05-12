@@ -199,6 +199,8 @@ do
     elif [[ "$line" =~ "  ACTIVITY".* ]]; then
         activityCounter=$((activityCounter+1))
         activityDisplayLine=$(printf "$line" | sed -e 's/^[[:space:]]*//' | cut -d' ' -f2 | cut -d'/' -f2)
+        pidLine=$(printf "$line" | sed -e 's/^[[:space:]]*//' | cut -d' ' -f4 | cut -d'=' -f2)
+        objectref=$(printf "$line" | sed -e 's/^[[:space:]]*//' | cut -d' ' -f3)
         activityStateLine=$(sed -n "$((simpleLineIterator + 1))p" "$simpleFile")
         SAVEIFS=$IFS
         IFS=' ' read -r -a array <<< "$activityStateLine"
@@ -208,7 +210,7 @@ do
         if [[ "$resumedPreManip" == true ]]; then
             ext="Active" 
         fi
-        echo "A $activityDisplayLine $ext - -" >> "$mapFile"
+        echo "A $activityDisplayLine{$objectref}[$pidLine] $ext - -" >> "$mapFile"
         activityMap["$activityCounter"]="$simpleLineIterator"
     #elif [[ "$line" =~ [[:space:]]{2,}[a-zA-Z1-9]+\{[a-z0-9]+\}\ \( ]]; then
     #elif [[ "$line" =~ \ [a-zA-Z1-9]+\{[a-z0-9\}]+\ .*id\= ]]; then
@@ -258,12 +260,17 @@ do
     elif [[ "$part1" == "A" ]]; then
         unset barMap
         currentActivtyNum=$((currentActivtyNum+1))
+        justClass=$(printf "$part2" | cut -d'{' -f1)
+        obj=$(printf "$part2" | cut -d'{' -f2 | cut -d'}' -f1)
+        objStr=" - ${objectcolor}${obj}${reset}"
+        pid=$(printf "$part2" | cut -d'[' -f2 | cut -d']' -f1)
+        pidStatus=" \033[93;2mpid:${pid}\033[0m"
         activeStatus=""
         if [[ "$part3" == "Active" ]]; then
-            activeStatus=" - \033[93mActive\033[0m"
+            activeStatus=" \033[93mActive\033[0m"
         fi
         echo ""
-        printf "${activitycolor}$part2${reset}${activeStatus}\n"
+        printf "${activitycolor}$justClass${reset}${objStr}${pidStatus}${activeStatus}\n"
     elif [[ "$part1" == "F" ]]; then
         nextActLineNum=$((currentActivtyNum+1))
         nextActLine="${activityMap[$nextActLineNum]}"
