@@ -38,6 +38,19 @@ argsCount=$#
 #    static final int RESUMED = 5;          // Created started and resumed.
 #What is state 7?
 #state 7 seems to be the fragment ontop and visible
+#TODO: add arguement or tag as another display option
+# ServerDrivenUIFragment{5639b6} (b27f6918-e5e4-4c02-8eac-51c5fea9cbd6 id=0x7f0b0286 tag=server_driven_ui)
+#     mFragmentId=#7f0b0286 mContainerId=#7f0b0286 mTag=server_driven_ui
+#     mState=1 mWho=b27f6918-e5e4-4c02-8eac-51c5fea9cbd6 mBackStackNesting=2
+#     mAdded=false mRemoving=true mFromLayout=false mInLayout=false
+#     mHidden=false mDetached=false mMenuVisible=true mHasMenu=false
+#     mRetainInstance=false mUserVisibleHint=true
+#     mFragmentManager=FragmentManager{e59e1a3 in ContainerFragment{f549fba}}}
+#     mHost=androidx.fragment.app.FragmentActivity$HostCallbacks@45a5246
+#     mParentFragment=ContainerFragment{f549fba} (d5be64b9-9618-48af-bfce-252d1f4bc84d id=0x7f0b0141 tag=ContainerFragment: 2131428546)
+#     mArguments=Bundle[{initData=ServerDrivenUiData(pageId=landing-pages/locations/16, params={}, container=SERVER_DRIVEN_UI, screenType=SDUI)}]
+#     mSavedViewRegistryState=Bundle[{androidx.lifecycle.BundlableSavedStateRegistry.key=Bundle[{SaveableStateRegistry:-1=Bundle[{haruc3=[[-3.4028235E38, 0.0, 0.0]], y0oyop=[[0, 0]], ysatff=[{dynamic-navigation-sticky-header={-3ewv9r=[0]}}]}]}]}]
+
 
 function selectAndPreparePackage(){
     package=$1
@@ -136,6 +149,9 @@ done
 
 selectAndPreparePackage "$1"
 
+#-------------------------
+#------ Code Start -------
+#-------------------------
 lineIterator=0
 while IFS= read -r line
 do
@@ -148,10 +164,10 @@ do
     #sed '/Added\ Fragments\:/,/FragmentManager\ misc/d'
     #find spaces and 
     #\ [a-zA-Z0-9]*\{[0-9a-z\}]*\ .*-.*-.*-.*-
-	#elif [[ "$line" =~ \ [a-zA-Z1-9]+\{[a-z0-9\}]+\ .*id\= ]]; then
+    #elif [[ "$line" =~ \ [a-zA-Z1-9]+\{[a-z0-9\}]+\ .*id\= ]]; then
     if [[ "$line" =~ "TASK".*  ]]; then
-		#16-03-2021 - Adding task seems to work fine doesnt break anything
-		echo "$line" >> "$simpleFile"
+        #16-03-2021 - Adding task seems to work fine doesnt break anything
+        echo "$line" >> "$simpleFile"
     elif [[ "$line" =~ "  ACTIVITY".* ]]; then
         echo "$line" >> "$simpleFile"
         statusLine=$(sed -n "$((lineIterator + 2))p" "$dsFileName")
@@ -160,7 +176,11 @@ do
         #TODO fragmetns not picked up here
         echo "$line" >> "$simpleFile"
         statusLine=$(sed -n "$((lineIterator + 2))p" "$dsFileName")
+        argsLine=$(sed -n "$((lineIterator + 9))p" "$dsFileName")
+        #echo "->>>$argsLine"
+        #check starts with mArguments=
         echo "### $statusLine" >> "$simpleFile"
+        echo "### $argsLine" >> "$simpleFile"
     fi
 done < "$dsFileName"
 
@@ -215,6 +235,8 @@ do
     #elif [[ "$line" =~ [[:space:]]{2,}[a-zA-Z1-9]+\{[a-z0-9]+\}\ \( ]]; then
     #elif [[ "$line" =~ \ [a-zA-Z1-9]+\{[a-z0-9\}]+\ .*id\= ]]; then
     elif [[ "$line" =~ \ [a-zA-Z1-9]+\{[a-z0-9\}]+\  ]]; then
+        # FRAGMENT BIT
+        # FRAGMENT BIT
         numberOfSpace=$(printf "$line" | awk -F'[^ ]' '{print length($1),NR}' | awk '{print $1}')
         #if [[ ! "$numberOfSpace" == 4 ]] && [[ ! "$numberOfSpace" == 6 ]]; then
         if [[ ! "$numberOfSpace" == 4 ]] && [[ ! "$numberOfSpace" == 6 ]] && [[ ! "$numberOfSpace" == 8 ]]; then
@@ -229,11 +251,17 @@ do
         fi
         externalPackager=$(printf "$line" | perl -nle 'm/([a-z0-9A-Z_]*(\.[A-Za-z0-9_]+)+[A-Z0-9a-z_]*)/; print $1')
         fragmentStatusLine=$(sed -n "$((simpleLineIterator + 1))p" "$simpleFile")
+        fragmentArgLine=$(sed -n "$((simpleLineIterator + 2))p" "$simpleFile")
         stateNum=$(echo "$fragmentStatusLine" | awk '{print $2}' | cut -d'=' -f2)
+        argInfo=$(echo "$fragmentArgLine" | awk -F '[' '{print $2}' | gsed -n 's/.*pageId=\([^,]*\),.*/\1/p')
+        argaddition="-"
+        if ! [[ -z "$argInfo" ]]; then
+            argaddition="$argInfo"
+        fi
         if [[ -z "$externalPackager" ]]; then
-            echo "F $wholeFragment $level - ${fragmentTag} ${stateNum}" >> "$mapFile"
+            echo "F $wholeFragment $level - ${fragmentTag} ${stateNum} ${argaddition}" >> "$mapFile"
         else
-            echo "F $wholeFragment $level $externalPackager ${fragmentTag} ${stateNum}" >> "$mapFile"
+            echo "F $wholeFragment $level $externalPackager ${fragmentTag} ${stateNum} ${argaddition}" >> "$mapFile"
         fi
     else
         echo "- - - - -" >> "$mapFile"
@@ -253,6 +281,7 @@ do
     part4=$(echo "$line" | awk '{print $4}')
     part5=$(echo "$line" | awk '{print $5}')
     part6=$(echo "$line" | awk '{print $6}')
+    part7=$(echo "$line" | awk '{print $7}')
     if [[ "$part1" == "T" ]]; then
         echo ""
         #printf "TASK: ${taskcolor}---> $part2 <---${reset}\n"
@@ -358,14 +387,18 @@ do
 #    static final int RESUMED = 5;          // Created started and resumed.
                 ;;
         esac
-
+        displayArgs=""
+        if ! [[ -z "$part7" ]]; then
+            #Very bespoke to GYG
+            displayArgs=" ${part7} "
+        fi
         #oc=$(printf "$part2" | cut -d'{' -f2 | cut -d'}' -f1)
         if [[ "$part4" != "-" ]]; then
             #printf "${fragmentStatecolor}${stateIcon}${reset}${fragmentcolor}${fr}${reset}${tagForFrag}- ${objectcolor}${oc} ${packagecolor}(${part4})${reset}\n"
-            printf "${fragmentStatecolor}${stateIcon}${reset}${fragmentcolor}${fr}${reset} - ${objectcolor}${oc} ${packagecolor}(${part4})${reset}\n"
+            printf "${fragmentStatecolor}${stateIcon}${reset}${fragmentcolor}${fr}${reset} - ${objectcolor}${oc} ${packagecolor}(${part4})${reset}${displayArgs}\n"
         else
             #printf "${fragmentStatecolor}${stateIcon}${reset}${fragmentcolor}${fr}${reset}${tagForFrag}- ${objectcolor}${oc}${reset}\n"
-            printf "${fragmentStatecolor}${stateIcon}${reset}${fragmentcolor}${fr}${reset} - ${objectcolor}${oc}${reset}\n"
+            printf "${fragmentStatecolor}${stateIcon}${reset}${fragmentcolor}${fr}${reset} - ${objectcolor}${oc}${reset}${displayArgs}\n"
         fi
     fi
 done < "$mapFile"
@@ -374,3 +407,4 @@ printf "\n"
 cleanUpDSFile
 rm "$simpleFile"
 rm "$mapFile"
+#Note: Simple file made first , that then goes into making MAP
